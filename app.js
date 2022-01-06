@@ -39,8 +39,8 @@ function doRelease(connection){
 
 //////////////////////////////////////////////////////////////////////////////////
 app.get('/', (req, res) => {
-    res.send("404 not found "+ req.session);
-    console.log(req.session)
+    res.send("404 not found !!");
+
 })
 
 app.post('/test', (req, res) => {
