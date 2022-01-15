@@ -7,18 +7,32 @@ const dbConfig = require('./dbConfig.js'); //오라클db 계정 정보
 const cors = require('cors'); //post 요청받을시 cors에러 해결을 위한 라이브러리
 const cookieParser = require('cookie-parser');
 const session = require("express-session"); //세션모듈 가져오기
+const multer = require('multer'); //이미지 업로드 모듈
+const moment = require('moment'); //날짜 관련 포맷 모듈
 
 app.use(cors());
 app.use(express.json()); //express.js의 내장 body-parser적용 (req.body로 데이터 받을수 있음)
 app.use(express.urlencoded( {extended : true } )); //extende : trud -> cors라이브러리 사용
-
 app.use(cookieParser());
+app.use(express.static('public')); //정적 파일 접근을 위해 사용 (업로드 되어진 이미지 보여주는 용도)
 
 app.use(session({
 	secret: 'session_cookie_name',
 	resave: false,
 	saveUninitialized: true
 }));
+
+//이미지 업로드 모듈
+const upload = multer({
+    storage: multer.diskStorage({      
+      destination: function (req, file, cb) { //저장경로
+        cb(null, 'public');
+      },
+      filename: function (req, file, cb) { //저장될 이미지파일 이름
+        cb(null, moment().valueOf() + file.originalname.replace(/(\s*)/g,"")); //repalce -> 이미지파일 이름 띄어쓰기 제거
+      },
+    }),
+});
 
 
 oracledb.autoCommit = true; // Oracle Auto Commit 설정  (제어어 COMMIT)
@@ -39,8 +53,7 @@ function doRelease(connection){
 
 //////////////////////////////////////////////////////////////////////////////////
 app.get('/', (req, res) => {
-    res.send("404 not found "+ req.session);
-    console.log(req.session)
+    res.send("404 not found ");
 })
 
 app.post('/test', (req, res) => {
@@ -60,12 +73,12 @@ app.get('/sel', (req, res) => {
     },
     function(err, connection){
         if (err) {
-            let rs = {code : 500 , err : err};
+            let rs = {code : 404 , err : err};
             res.send(rs);
             return;
         }
 
-        connection.execute(`SELECT * FROM member WHERE user_id = :user_id`,['test22'],  (err, result) => {      
+        connection.execute(`SELECT * FROM member WHERE id = :user_id`,['testid'],  (err, result) => {      
             if (err) {
                 doRelease(connection);
                 let rs = {code : 500 , err : err};
@@ -195,6 +208,14 @@ app.post('/logout', async(req, res) => {
         res.send(rs);
     })
 });
+
+//이미지 업로드 (upload : multer모듈로 이미지 저장)
+app.post('/upload',upload.single('img'),(req,res) => {
+    let rs={};
+    rs.code=200;
+    rs.file=req.file; //저장된 이미지 파일 이름 리턴
+    res.send(rs);
+})
 
 //글 등록
 app.post('/write', async(req, res) => {
