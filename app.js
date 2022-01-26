@@ -3,10 +3,9 @@ const express = require('express'); //express를 설치했기 때문에 가져�
 const app = express();
 const port = 3001;
 
-app.set('views', __dirname + '/views');
+const mysql = require('mysql'); //mysql 연동
+const dbConfig = require('./dbConfig.js'); //db 계정 정보
 
-const oracledb = require('oracledb'); //오라클db 연동
-const dbConfig = require('./dbConfig.js'); //오라클db 계정 정보
 const cors = require('cors'); //post 요청받을시 cors에러 해결을 위한 라이브러리
 const cookieParser = require('cookie-parser');
 const session = require("express-session"); //세션모듈 가져오기
@@ -37,64 +36,45 @@ const upload = multer({
     }),
 });
 
+//oracledb.autoCommit = true; // Oracle Auto Commit 설정  (제어어 COMMIT)
 
-oracledb.autoCommit = true; // Oracle Auto Commit 설정  (제어어 COMMIT)
-
-/////////////////////////////////////////////////////////////////////////////////
-
-//db연결해제
-function doRelease(connection){
-    connection.release(
-        function(err) {
-            if (err) {
-                console.error(err.message);
-            }
-        }
-    );
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////
 app.get('/', (req, res) => {
-    res.send("404 not found !!!!");
+    res.send("404 not found");
 })
 
-app.post('/test', (req, res) => {
-    const rs = {};
-    rs.dbo = {id : req.body.id , pwd : req.body.pwd , nickname : req.body.nickname};
+//테스트
+app.get('/test', async(req, res) => {
+    let connection;
+    let rs = {};
 
-    res.send(rs)
-})
+    try {
+        //db연결
+        connection = mysql.createConnection(dbConfig);
+        connection.connect(); 
 
-//회원정보
-app.get('/seltest', (req, res) => {
-
-    oracledb.getConnection({
-        user          : dbConfig.user,
-        password      : dbConfig.password,
-        connectString : dbConfig.connectString
-    },
-    function(err, connection){
-        if (err) {
-            let rs = {code : 404 , err : err};
-            res.send(rs);
-            return;
-        }
-
-        connection.execute(`SELECT * FROM member WHERE id = :user_id`,['testid'],  (err, result) => {      
+        connection.query(`SELECT * FROM member WHERE id ='testid'`, function (err, result) {
             if (err) {
-                doRelease(connection);
-                let rs = {code : 500 , err : err};
-                res.send(rs);
+                console.log(err);
                 return;
             }
-            doRelease(connection);
-            let rs = {};
-            rs.code = 200;
-            rs.dbo = result.rows;
-            res.send(rs);
+            rs.code = 200;    
+            rs.dbo = result;  
+            res.send(rs);  
         });
-    });
+    } catch (err) {
+        rs = {code : 500 , err : err};       
+        res.send(rs);
+        return;
+    } finally {
+        if (connection) {
+            try {
+                //db연결해제
+                connection.end();
+            } catch (err) {
+                console.log(err)
+            }
+        }
+    }
 });
 
 //회원가입
