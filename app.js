@@ -227,9 +227,8 @@ app.post('/write', async(req, res) => {
 
         await connection.query(`
             INSERT INTO board(
-                bd_no, id, nickname, category, subject, content
+                id, nickname, category, subject, content
             )VALUES (
-                board_seq.nextval,
                 '${id}',
                 '${nickname}',
                 '${category}',
@@ -399,12 +398,10 @@ app.post('/recommend', async(req, res) => {
 
         await connection.query(
             `INSERT INTO recommend (  
-                rc_no,
                 bd_no,
                 id,
                 classtype
             ) VALUES(
-                recommend_seq.nextval,
                 ${bd_no},
                 '${id}',
                 '${classtype}'
@@ -443,11 +440,9 @@ app.post('/bookmark_ins', async(req, res) => {
 
         await connection.query(
             `INSERT INTO bookmark (  
-                bm_no,
                 bd_no,
                 id
             ) VALUES(
-                bookmark_seq.nextval,
                 ${bd_no},
                 '${id}'
             )`
@@ -497,13 +492,11 @@ app.post('/reply_ins', async(req, res) => {
 
         await connection.query(
             `INSERT INTO reply (  
-                rp_no,
                 bd_no,
                 id,
                 nickname,
                 content
             ) VALUES(
-                reply_seq.nextval,
                 ${bd_no},
                 '${id}',
                 '${nickname}',
@@ -568,12 +561,10 @@ app.post('/hitsUp', async(req, res) => {
 
         await connection.query(
             `INSERT INTO hits (  
-                hits_no,
                 bd_no,
                 id,
                 ip
             ) VALUES(
-                hits_seq.nextval,
                 ${bd_no},
                 '${id}',
                 '${ip}'
