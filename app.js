@@ -3,7 +3,8 @@ const express = require('express'); //express를 설치했기 때문에 가져�
 const app = express();
 const port = 3001;
 
-const mysql = require('mysql'); //mysql 연동
+const mysql = require("mysql2/promise"); //mysql 연동
+
 const dbConfig = require('./dbConfig.js'); //db 계정 정보
 
 const cors = require('cors'); //post 요청받을시 cors에러 해결을 위한 라이브러리
@@ -17,12 +18,14 @@ app.use(express.json()); //express.js의 내장 body-parser적용 (req.body로 �
 app.use(express.urlencoded( {extended : true } )); //extende : trud -> cors라이브러리 사용
 app.use(cookieParser());
 app.use(express.static('public')); //정적 파일 접근을 위해 사용 (업로드 되어진 이미지 보여주는 용도)
-
 app.use(session({
 	secret: 'session_cookie_name',
 	resave: false,
 	saveUninitialized: true
 }));
+
+
+//oracledb.autoCommit = true; // Oracle Auto Commit 설정  (제어어 COMMIT)
 
 //이미지 업로드 모듈
 const upload = multer({
@@ -36,7 +39,6 @@ const upload = multer({
     }),
 });
 
-//oracledb.autoCommit = true; // Oracle Auto Commit 설정  (제어어 COMMIT)
 
 app.get('/', (req, res) => {
     res.send("404 not found");
@@ -48,62 +50,91 @@ app.get('/test', async(req, res) => {
     let rs = {};
 
     try {
-        //db연결
-        connection = mysql.createConnection(dbConfig);
-        connection.connect(); 
+        connection = await mysql.createConnection(dbConfig);
 
-        connection.query(`SELECT * FROM member WHERE id ='testid'`, function (err, result) {
-            if (err) {
-                console.log(err);
-                return;
-            }
-            rs.code = 200;    
-            rs.dbo = result;  
-            res.send(rs);  
-        });
+        const [result] = await connection.query(`SELECT * FROM board`);
+
+        rs.code = 200;    
+        rs.dbo = result;  
+        res.send(rs);  
+
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                //db연결해제
-                connection.end();
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
+//테스트2
+app.post('/test2', async(req, res) => {
+    let connection;
+    let rs = {};
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+
+        const [result] = await connection.query(`SELECT * FROM member WHERE id ='testid2'`);
+
+        rs.code = 200;    
+        rs.dbo = result[0];  
+        res.send(rs);  
+
+    } catch (err) {
+        rs = {code : 500 , err : err};       
+        res.send(rs);
+        return;
+    }
+});
+
+//테스트3
+
+app.get('/test3', async(req, res) => {
+    let connection;
+    let rs = {};
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+
+        await connection.query(`
+            INSERT INTO member(
+                id, nickname, pwd
+            )VALUES (
+                'aaaaa',
+                'bbbbb',
+                'ccccc'
+            )
+        `)
+        rs.code = 200;
+        res.send(rs);
+    } catch (err) {
+        rs = {code : 500 , err : err};       
+        res.send(rs);
+        return;
+    }
+});
+
+
+
 //회원가입
-app.post('/join', async(req, res) => {
+app.get('/join', async(req, res) => {
     let connection;
     let rs = {};
     try {     
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
-        const pwd = req.body.pwd;
         const nickname = req.body.nickname;
+        const pwd = req.body.pwd;
 
-        const result = await connection.execute(
-            `SELECT * FROM member WHERE id ='${id}'`,[],
-            { outFormat: oracledb.OUT_FORMAT_OBJECT }
-        )
+        const [result] = await connection.query(`SELECT * FROM member WHERE id ='${id}'`);
 
-        if(result.rows.length){
+        if(result.length){
             rs.code = 501;
             rs.msg = "사용중인 아이디가 있습니다.";          
             res.send(rs);
             return;
         }else{ 
-            await connection.execute(`
+            await connection.query(`
                 INSERT INTO member(
                     id, nickname, pwd
                 )VALUES (
@@ -118,20 +149,15 @@ app.post('/join', async(req, res) => {
             rs.code = 200;    
             res.send(rs);    
         }
+
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
+
+//////////////////////////////////////////////////////
 
 //로그인
 app.post('/login', async(req, res) => {
@@ -139,24 +165,17 @@ app.post('/login', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
         const pwd = req.body.pwd;
 
-        const result = await connection.execute(
-            `SELECT * FROM member WHERE id ='${id}' and pwd = '${pwd}'`,[],
-            { outFormat: oracledb.OUT_FORMAT_OBJECT }
-        )
+        const [result] = await connection.query(`SELECT * FROM member WHERE id ='${id}' and pwd = '${pwd}'`);
 
-        if(result.rows.length){
+        if(result.length){
             req.session.user_id = id;
             rs.ssid = req.session.user_id;  
-            rs.ssnickname = result.rows[0].NICKNAME;              
+            rs.ssnickname = result[0].nickname;              
             rs.code = 200;    
             res.send(rs);  
         }else{ 
@@ -164,19 +183,11 @@ app.post('/login', async(req, res) => {
             res.send(rs);
             return;  
         }
-        
+
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -206,11 +217,7 @@ app.post('/write', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
         const nickname = req.body.nickname;
@@ -218,7 +225,7 @@ app.post('/write', async(req, res) => {
         const subject = req.body.subject;
         const content = req.body.content;
 
-        await connection.execute(`
+        await connection.query(`
             INSERT INTO board(
                 bd_no, id, nickname, category, subject, content
             )VALUES (
@@ -228,29 +235,19 @@ app.post('/write', async(req, res) => {
                 '${category}',
                 '${subject}',
                 '${content}'
-            )
-        `)
-
-        //등록한 글로 넘어가기 위한 bd_no 받아오기
-        const myview = await connection.execute(
-            `SELECT bd_no FROM board WHERE id='${id}' and subject='${subject}' and content='${content}' and ROWNUM = 1`,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        );   
-        rs.bd_no=myview.rows[0].BD_NO;
-
+            )`
+        );  
+             
+        const [result] = await connection.query(`SELECT bd_no FROM board WHERE id='${id}' and subject='${subject}' and content='${content}' limit 1`);
+    
+        rs.bd_no=result[0].bd_no;
         rs.code = 200;    
-        res.send(rs);      
+        res.send(rs);   
+
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -260,11 +257,7 @@ app.post('/modify', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const bd_no = req.body.bd_no;
         const id = req.body.id;
@@ -273,12 +266,12 @@ app.post('/modify', async(req, res) => {
         const subject = req.body.subject;
         const content = req.body.content;
 
-        await connection.execute(`
+        await connection.query(`
             UPDATE board SET 
-            nickname='${nickname}',
-            category='${category}',
-            subject='${subject}',
-            content='${content}'
+                nickname='${nickname}',
+                category='${category}',
+                subject='${subject}',
+                content='${content}'
             WHERE bd_no =${bd_no} and id='${id}'
         `);
 
@@ -288,14 +281,6 @@ app.post('/modify', async(req, res) => {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -305,32 +290,18 @@ app.post('/delete', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
         const bd_no = req.body.bd_no;
 
-        await connection.execute(
-            ` DELETE FROM board WHERE bd_no=${bd_no} and id='${id}' `
-        )
+        await connection.query(`DELETE FROM board WHERE bd_no=${bd_no} and id='${id}'`);
         rs.code = 200;    
         res.send(rs);  
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -340,25 +311,20 @@ app.post('/boardList', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const category = req.body.category;
         const page = req.body.page;
         const sort = req.body.sort;
-        const listNumber = req.body.listNumber;
 
-        const startNum = page*listNumber-(listNumber-1); // 페이징 시작넘버
-        const endNum = startNum+(listNumber-1); // 페이징 끝넘버
-        const paging = `RNUM >= ${startNum} AND RNUM <= ${endNum}`
+        //페이징관련
+        const startNum = page*listNumber-listNumber; // 페이징 시작넘버
+        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
+        const paging = `limit ${startNum},${listNumber}`;
 
         //필터적용
         let filter="";
         filter = `hide=0 and category='${category}'`;
-
         if(sort=="hot"){ //인기
             filter+=` ORDER BY hits DESC,reg_date DESC`;
         }else if(sort=="latest"){ //최신
@@ -366,34 +332,20 @@ app.post('/boardList', async(req, res) => {
         }else if(sort=="ten"){ //10추
             filter+=` and gets>=10 ORDER BY gets DESC`;
         }
+        //
 
-        const result = await connection.execute(
-            `SELECT * FROM ( 
-                SELECT A.*, 
-                ROWNUM AS RNUM FROM (
-                    SELECT * FROM board WHERE ${filter}
-                ) A
-            ) WHERE ${paging}`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        )
+        const [result] = await connection.query(`SELECT * from board where ${filter} ${paging}`); 
         //총 데이터 개수
-        const data_cnt = await connection.execute(`SELECT count(*) as cnt FROM board WHERE ${filter}` ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }); 
+        const [data_cnt] = await connection.query(`SELECT count(*) as cnt FROM board WHERE ${filter}`); 
+
         rs.code = 200;    
-        rs.dbo = result.rows;
-        rs.data_cnt = data_cnt.rows[0].CNT;
+        rs.dbo = result;
+        rs.data_cnt = data_cnt[0].cnt;
         res.send(rs);  
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -403,57 +355,33 @@ app.post('/boardView', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const bd_no = req.body.bd_no;
         const id = req.body.id;
 
         //해당 글 정보
-        const result = await connection.execute(
-            `SELECT * FROM board WHERE bd_no=${bd_no}`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        )
+        const [result] = await connection.query(`SELECT * FROM board WHERE bd_no=${bd_no}`);
 
         //댓글 정보
-        const reply = await connection.execute(
-            `SELECT * FROM reply WHERE bd_no=${bd_no} and hide=0`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        )
+        const [reply] = await connection.query(`SELECT * FROM reply WHERE bd_no=${bd_no} and hide=0`);
 
         //계정 기준 유저아이디 추천,비추천 개수
-        const id_recomm = await connection.execute(
-            `SELECT count(*) as cnt FROM recommend WHERE bd_no=${bd_no} and id='${id}'`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        );
+        const [id_recomm] = await connection.query(`SELECT count(*) as cnt FROM recommend WHERE bd_no=${bd_no} and id='${id}'`);
 
         //즐겨찾기 유무 체크
-        const bookmark = await connection.execute(
-            `SELECT count(*) as cnt FROM bookmark WHERE bd_no=${bd_no} and id='${id}'`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        );
+        const [bookmark] = await connection.query(`SELECT count(*) as cnt FROM bookmark WHERE bd_no=${bd_no} and id='${id}'`);
           
         rs.code = 200;    
-        rs.dbo = result.rows[0];  
-        rs.reply = reply.rows;
-        rs.id_recomm = id_recomm.rows[0].CNT;
-        rs.bookmark = bookmark.rows[0].CNT;
+        rs.dbo = result[0];  
+        rs.reply = reply;
+        rs.id_recomm = id_recomm[0].cnt;
+        rs.bookmark = bookmark[0].cnt;
         res.send(rs);  
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -463,17 +391,13 @@ app.post('/recommend', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
         const bd_no = req.body.bd_no;
         const classtype = req.body.classtype;
 
-        await connection.execute(
+        await connection.query(
             `INSERT INTO recommend (  
                 rc_no,
                 bd_no,
@@ -487,30 +411,22 @@ app.post('/recommend', async(req, res) => {
             )`
         )
 
-        const rec_cnt = await connection.execute(
-            `SELECT count(*) as cnt FROM recommend WHERE bd_no=${bd_no} and classtype='${classtype}'`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        ); 
+        //해당 글의 추천or비추천 갯수 가져오기
+        const [rec_cnt] = await connection.query(`SELECT count(*) as cnt FROM recommend WHERE bd_no=${bd_no} and classtype='${classtype}'`); 
 
+        //board 테이블 추천or비추천 업데이트
         if(classtype=="추천"){
-            await connection.execute(`UPDATE board SET gets=${rec_cnt.rows[0].CNT} WHERE bd_no =${bd_no}`);
+            await connection.query(`UPDATE board SET gets=${rec_cnt[0].cnt} WHERE bd_no =${bd_no}`);
         }else{
-            await connection.execute(`UPDATE board SET degets=${rec_cnt.rows[0].CNT} WHERE bd_no =${bd_no}`);
+            await connection.query(`UPDATE board SET degets=${rec_cnt[0].cnt} WHERE bd_no =${bd_no}`);
         }
+
         rs.code = 200;    
         res.send(rs);  
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -520,16 +436,12 @@ app.post('/bookmark_ins', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
         const bd_no = req.body.bd_no;
 
-        await connection.execute(
+        await connection.query(
             `INSERT INTO bookmark (  
                 bm_no,
                 bd_no,
@@ -546,14 +458,6 @@ app.post('/bookmark_ins', async(req, res) => {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -563,32 +467,18 @@ app.post('/bookmark_del', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
         const bd_no = req.body.bd_no;
 
-        await connection.execute(
-            ` DELETE FROM bookmark WHERE bd_no=${bd_no} and id='${id}' `
-        )
+        await connection.query(` DELETE FROM bookmark WHERE bd_no=${bd_no} and id='${id}'`)
         rs.code = 200;    
         res.send(rs);  
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -598,18 +488,14 @@ app.post('/reply_ins', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
         const nickname = req.body.nickname;
         const bd_no = req.body.bd_no;
         const content = req.body.content;
 
-        await connection.execute(
+        await connection.query(
             `INSERT INTO reply (  
                 rp_no,
                 bd_no,
@@ -626,12 +512,9 @@ app.post('/reply_ins', async(req, res) => {
         )
 
         //댓글 갯수 가져오기
-        const rc_cnt = await connection.execute(
-            `SELECT count(*) as cnt FROM reply WHERE hide=0 and bd_no=${bd_no}`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        ); 
+        const [rc_cnt] = await connection.query(`SELECT count(*) as cnt FROM reply WHERE hide=0 and bd_no=${bd_no}`); 
         //board 테이블 댓글수 업데이트
-        await connection.execute(`UPDATE board SET comments=${rc_cnt.rows[0].CNT} WHERE bd_no =${bd_no}`);
+        await connection.query(`UPDATE board SET comments=${rc_cnt[0].cnt} WHERE bd_no =${bd_no}`);
 
         rs.code = 200;    
         res.send(rs);  
@@ -639,14 +522,6 @@ app.post('/reply_ins', async(req, res) => {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -656,27 +531,19 @@ app.post('/reply_del', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const rp_no = req.body.rp_no;
         const bd_no = req.body.bd_no;
-        const content = req.body.content;
 
-        await connection.execute(
+        await connection.query(
             `UPDATE reply SET hide=1 where rp_no = ${rp_no}`
         )
 
         //댓글 갯수 가져오기
-        const rc_cnt = await connection.execute(
-            `SELECT count(*) as cnt from reply WHERE hide=0 and bd_no=${bd_no}`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        ); 
+        const [rc_cnt] = await connection.query(`SELECT count(*) as cnt from reply WHERE hide=0 and bd_no=${bd_no}`); 
         //board 테이블 댓글수 업데이트
-        await connection.execute(`UPDATE board SET comments=${rc_cnt.rows[0].CNT} WHERE bd_no =${bd_no}`);
+        await connection.query(`UPDATE board SET comments=${rc_cnt[0].cnt} WHERE bd_no =${bd_no}`);
 
         rs.code = 200;    
         res.send(rs);  
@@ -684,14 +551,6 @@ app.post('/reply_del', async(req, res) => {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -701,18 +560,13 @@ app.post('/hitsUp', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const id = req.body.id;
         const bd_no = req.body.bd_no;
         const ip = req.body.ip;
 
-
-        await connection.execute(
+        await connection.query(
             `INSERT INTO hits (  
                 hits_no,
                 bd_no,
@@ -727,12 +581,9 @@ app.post('/hitsUp', async(req, res) => {
         )
 
         //조회테이블 에서 갯수 가져오기
-        const hits_cnt = await connection.execute(
-            `SELECT count(*) as cnt from hits WHERE bd_no=${bd_no}`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        ); 
+        const [hits_cnt] = await connection.query(`SELECT count(*) as cnt from hits WHERE bd_no=${bd_no}`); 
         //board 테이블 조회수 업데이트
-        await connection.execute(`UPDATE board SET hits=${hits_cnt.rows[0].CNT} WHERE bd_no =${bd_no}`);
+        await connection.query(`UPDATE board SET hits=${hits_cnt[0].cnt} WHERE bd_no =${bd_no}`);
 
         rs.code = 200;    
         res.send(rs);  
@@ -740,14 +591,6 @@ app.post('/hitsUp', async(req, res) => {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -757,53 +600,33 @@ app.post('/myWrite', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
 
         const page = req.body.page;
-        const listNumber = req.body.listNumber;
         const id = req.body.id;
 
-        const startNum = page*listNumber-(listNumber-1); // 페이징 시작넘버
-        const endNum = startNum+(listNumber-1); // 페이징 끝넘버
-        const paging = `RNUM >= ${startNum} AND RNUM <= ${endNum}`
+        //페이징관련
+        const startNum = page*listNumber-listNumber; // 페이징 시작넘버
+        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
+        const paging = `limit ${startNum},${listNumber}`;
 
         //필터적용
         let filter="";
         filter = `hide=0 and id='${id}'`;
         filter+=` ORDER BY reg_date DESC`;
 
-
-        const result = await connection.execute(
-            `SELECT * FROM ( 
-                SELECT A.*, 
-                ROWNUM AS RNUM FROM (
-                    SELECT * FROM board WHERE ${filter}
-                ) A
-            ) WHERE ${paging}`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        )
+        const [result] = await connection.query(`SELECT * from board where ${filter} ${paging}`); 
         //총 데이터 개수
-        const data_cnt = await connection.execute(`SELECT count(*) as cnt FROM board WHERE ${filter}` ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }); 
+        const [data_cnt] = await connection.query(`SELECT count(*) as cnt FROM board WHERE ${filter}`); 
+
         rs.code = 200;    
-        rs.dbo = result.rows;
-        rs.data_cnt = data_cnt.rows[0].CNT;
+        rs.dbo = result;
+        rs.data_cnt = data_cnt[0].cnt;
         res.send(rs);  
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
@@ -813,43 +636,32 @@ app.post('/myBookmark', async(req, res) => {
     let rs = {};
 
     try {
-        connection = await oracledb.getConnection({
-            user          : dbConfig.user,
-            password      : dbConfig.password,
-            connectString : dbConfig.connectString
-        })
+        connection = await mysql.createConnection(dbConfig);
         
 
         const page = req.body.page;
-        const listNumber = req.body.listNumber;
         const id = req.body.id;
 
-        const startNum = page*listNumber-(listNumber-1); // 페이징 시작넘버
-        const endNum = startNum+(listNumber-1); // 페이징 끝넘버
-        const paging = `RNUM >= ${startNum} AND RNUM <= ${endNum}`;
+        //페이징관련
+        const startNum = page*listNumber-listNumber; // 페이징 시작넘버
+        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
+        const paging = `limit ${startNum},${listNumber}`;
+
         let bdno = "";
 
-
-
         //와드 박은 데이터 갯수 가져오기
-        const bookmark_cnt = await connection.execute(
-            `SELECT distinct count(bd_no) as cnt from bookmark where id='${id}' `
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        );
+        const [bookmark_cnt] = await connection.query(`SELECT distinct count(bd_no) as cnt from bookmark where id='${id}'`);
         //와드 박은 데이터 id_no 가져오기
-        const bookmark_bd_no = await connection.execute(
-            `SELECT distinct bd_no from bookmark where id='${id}'`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        );
+        const [bookmark_bd_no] = await connection.query(`SELECT distinct bd_no from bookmark where id='${id}'`);
 
         //데이터가 0개면 바로 빠져나옴
-        if(!bookmark_cnt.rows[0].CNT){ 
+        if(!bookmark_cnt[0].cnt){ 
             rs.code = 200;
             res.send(rs);
             return;
         }
-        for(let i in bookmark_bd_no.rows){
-            bdno += bookmark_bd_no.rows[i].BD_NO+",";
+        for(let i in bookmark_bd_no){
+            bdno += bookmark_bd_no[i].bd_no+",";
         }
         bdno = bdno.slice(0,-1);
 
@@ -859,38 +671,20 @@ app.post('/myBookmark', async(req, res) => {
         filter = `hide=0 and bd_no in (${bdno})`;
         filter+=` ORDER BY reg_date DESC`;
 
-
-        const result = await connection.execute(
-            `SELECT * FROM ( 
-                SELECT A.*, 
-                ROWNUM AS RNUM FROM (
-                    SELECT * FROM board WHERE ${filter}
-                ) A
-            ) WHERE ${paging}`
-            ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }
-        )
+        const [result] = await connection.query(`SELECT * from board where ${filter} ${paging}`); 
         //총 데이터 개수
-        const data_cnt = await connection.execute(`SELECT count(*) as cnt FROM board WHERE ${filter}` ,[],{ outFormat: oracledb.OUT_FORMAT_OBJECT }); 
+        const data_cnt = await connection.query(`SELECT count(*) as cnt FROM board WHERE ${filter}`); 
+
         rs.code = 200;    
-        rs.dbo = result.rows;
-        rs.data_cnt = data_cnt.rows[0].CNT;
+        rs.dbo = result;
+        rs.data_cnt = data_cnt[0].cnt;
         res.send(rs);  
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
         return;
-    } finally {
-        if (connection) {
-            try {
-                doRelease(connection);
-            } catch (err) {
-                console.log(err)
-            }
-        }
     }
 });
 
-
-
-app.listen(port)
+app.listen(port);
 
