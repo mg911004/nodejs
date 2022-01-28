@@ -95,13 +95,16 @@ app.get('/test3', async(req, res) => {
     try {
         connection = await mysql.createConnection(dbConfig);
 
+        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
+
         await connection.query(`
             INSERT INTO member(
-                id, nickname, pwd
+                id, nickname, pwd,reg_date
             )VALUES (
                 'aaaaa',
                 'bbbbb',
-                'ccccc'
+                'ccccc',
+                '${reg_date}'
             )
         `)
         rs.code = 200;
@@ -125,6 +128,7 @@ app.get('/join', async(req, res) => {
         const id = req.body.id;
         const nickname = req.body.nickname;
         const pwd = req.body.pwd;
+        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         const [result] = await connection.query(`SELECT * FROM member WHERE id ='${id}'`);
 
@@ -136,11 +140,12 @@ app.get('/join', async(req, res) => {
         }else{ 
             await connection.query(`
                 INSERT INTO member(
-                    id, nickname, pwd
+                    id, nickname, pwd , reg_date
                 )VALUES (
                     '${id}',
                     '${nickname}',
-                    '${pwd}'
+                    '${pwd}',
+                    '${reg_date}'
                 )
             `)
             req.session.user_id = id;
@@ -224,16 +229,18 @@ app.post('/write', async(req, res) => {
         const category = req.body.category;
         const subject = req.body.subject;
         const content = req.body.content;
+        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         await connection.query(`
             INSERT INTO board(
-                id, nickname, category, subject, content
+                id, nickname, category, subject, content, reg_date
             )VALUES (
                 '${id}',
                 '${nickname}',
                 '${category}',
                 '${subject}',
-                '${content}'
+                '${content}',
+                '${reg_date}'
             )`
         );  
              
@@ -395,16 +402,19 @@ app.post('/recommend', async(req, res) => {
         const id = req.body.id;
         const bd_no = req.body.bd_no;
         const classtype = req.body.classtype;
+        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         await connection.query(
             `INSERT INTO recommend (  
                 bd_no,
                 id,
-                classtype
+                classtype,
+                reg_date
             ) VALUES(
                 ${bd_no},
                 '${id}',
-                '${classtype}'
+                '${classtype}',
+                '${reg_date}'
             )`
         )
 
@@ -437,14 +447,17 @@ app.post('/bookmark_ins', async(req, res) => {
 
         const id = req.body.id;
         const bd_no = req.body.bd_no;
+        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         await connection.query(
             `INSERT INTO bookmark (  
                 bd_no,
-                id
+                id,
+                reg_date
             ) VALUES(
                 ${bd_no},
-                '${id}'
+                '${id}',
+                '${reg_date}'
             )`
         )
         rs.code = 200;    
@@ -489,18 +502,21 @@ app.post('/reply_ins', async(req, res) => {
         const nickname = req.body.nickname;
         const bd_no = req.body.bd_no;
         const content = req.body.content;
+        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         await connection.query(
             `INSERT INTO reply (  
                 bd_no,
                 id,
                 nickname,
-                content
+                content,
+                reg_date
             ) VALUES(
                 ${bd_no},
                 '${id}',
                 '${nickname}',
-                '${content}'
+                '${content}',
+                '${reg_date}'
             )`
         )
 
@@ -558,16 +574,19 @@ app.post('/hitsUp', async(req, res) => {
         const id = req.body.id;
         const bd_no = req.body.bd_no;
         const ip = req.body.ip;
+        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         await connection.query(
             `INSERT INTO hits (  
                 bd_no,
                 id,
-                ip
+                ip,
+                reg_date
             ) VALUES(
                 ${bd_no},
                 '${id}',
-                '${ip}'
+                '${ip}',
+                '${reg_date}'
             )`
         )
 
