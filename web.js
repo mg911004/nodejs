@@ -44,6 +44,27 @@ app.get('/', (req, res) => {
     res.send("404 not found");
 })
 
+//글 목록
+app.get('/test', async(req, res) => {
+    let connection;
+    let rs = {};
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+
+
+        const [result] = await connection.query(`SELECT * from board`); 
+
+        rs.code = 200;    
+        rs.dbo = result;
+        res.send(rs);  
+    } catch (err) {
+        rs = {code : 500 , err : err};       
+        res.send(rs);
+        return;
+    }
+});
+
 //회원가입
 app.post('/join', async(req, res) => {
     let connection;
