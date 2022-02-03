@@ -1,5 +1,5 @@
 module.exports = {
-	host: 'ygcomm.cafe24app.com',
+	host: 'commu.cafe24app.com',
 	port: '3306',
 	user: 'ygcommu',
 	password: 'rhffldkt11!',
