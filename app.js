@@ -1,7 +1,7 @@
 //const { response } = require('express');
 const express = require('express'); //express를 설치했기 때문에 가져올 수 있다..
 const app = express();
-const port = 3001;
+const port = 8001;
 
 const mysql = require("mysql2/promise"); //mysql 연동
 
@@ -45,7 +45,7 @@ app.get('/', (req, res) => {
 })
 
 //회원가입
-app.get('/join', async(req, res) => {
+app.post('/join', async(req, res) => {
     let connection;
     let rs = {};
     try {     
