@@ -44,80 +44,6 @@ app.get('/', (req, res) => {
     res.send("404 not found");
 })
 
-//테스트
-app.get('/test', async(req, res) => {
-    let connection;
-    let rs = {};
-
-    try {
-        connection = await mysql.createConnection(dbConfig);
-
-        const [result] = await connection.query(`SELECT * FROM board`);
-
-        rs.code = 200;    
-        rs.dbo = result;  
-        res.send(rs);  
-
-    } catch (err) {
-        rs = {code : 500 , err : err};       
-        res.send(rs);
-        return;
-    }
-});
-
-//테스트2
-app.post('/test2', async(req, res) => {
-    let connection;
-    let rs = {};
-
-    try {
-        connection = await mysql.createConnection(dbConfig);
-
-        const [result] = await connection.query(`SELECT * FROM member WHERE id ='testid2'`);
-
-        rs.code = 200;    
-        rs.dbo = result[0];  
-        res.send(rs);  
-
-    } catch (err) {
-        rs = {code : 500 , err : err};       
-        res.send(rs);
-        return;
-    }
-});
-
-//테스트3
-
-app.get('/test3', async(req, res) => {
-    let connection;
-    let rs = {};
-
-    try {
-        connection = await mysql.createConnection(dbConfig);
-
-        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
-
-        await connection.query(`
-            INSERT INTO member(
-                id, nickname, pwd,reg_date
-            )VALUES (
-                'aaaaa',
-                'bbbbb',
-                'ccccc',
-                '${reg_date}'
-            )
-        `)
-        rs.code = 200;
-        res.send(rs);
-    } catch (err) {
-        rs = {code : 500 , err : err};       
-        res.send(rs);
-        return;
-    }
-});
-
-
-
 //회원가입
 app.get('/join', async(req, res) => {
     let connection;
@@ -322,10 +248,10 @@ app.post('/boardList', async(req, res) => {
         const category = req.body.category;
         const page = req.body.page;
         const sort = req.body.sort;
+        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
 
         //페이징관련
         const startNum = page*listNumber-listNumber; // 페이징 시작넘버
-        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
         const paging = `limit ${startNum},${listNumber}`;
 
         //필터적용
@@ -614,10 +540,10 @@ app.post('/myWrite', async(req, res) => {
 
         const page = req.body.page;
         const id = req.body.id;
+        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
 
         //페이징관련
         const startNum = page*listNumber-listNumber; // 페이징 시작넘버
-        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
         const paging = `limit ${startNum},${listNumber}`;
 
         //필터적용
@@ -651,10 +577,10 @@ app.post('/myBookmark', async(req, res) => {
 
         const page = req.body.page;
         const id = req.body.id;
+        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
 
         //페이징관련
         const startNum = page*listNumber-listNumber; // 페이징 시작넘버
-        const listNumber = req.body.listNumber; //한 화면에 보여줄 데이터 수
         const paging = `limit ${startNum},${listNumber}`;
 
         let bdno = "";
