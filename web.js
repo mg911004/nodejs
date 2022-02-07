@@ -12,6 +12,15 @@ const session = require("express-session"); //세션모듈 가져오기
 const multer = require('multer'); //이미지 업로드 모듈
 const moment = require('moment'); //날짜 관련 포맷 모듈
 
+const Pusher = require('pusher'); //채팅모듈등록
+const pusher = new Pusher({ //채팅출력정보
+    appId: "1343117",
+    key: "407cb2ae1ebb455e1244",
+    secret: "6d107d2c9d093dad06be",
+    cluster: "ap3",
+    useTLS: true
+});
+
 app.use(cors());
 app.use(express.json()); //express.js의 내장 body-parser적용 (req.body로 데이터 받을수 있음)
 app.use(express.urlencoded( {extended : true } )); //extende : true -> qs 라이브러리 사용
@@ -22,6 +31,7 @@ app.use(session({
 	resave: false,
 	saveUninitialized: true
 }));
+
 
 
 //oracledb.autoCommit = true; // Oracle Auto Commit 설정  (제어어 COMMIT)
@@ -615,6 +625,70 @@ app.post('/myBookmark', async(req, res) => {
         rs.dbo = result;
         rs.data_cnt = data_cnt[0].cnt;
         res.send(rs);  
+    } catch (err) {
+        rs = {code : 500 , err : err};       
+        res.send(rs);
+        return;
+    }
+});
+
+//채팅 입력
+app.post('/chatWrite', async function(req, res) {  
+
+    let connection;
+    let rs = {};
+
+    try {
+
+        connection = await mysql.createConnection(dbConfig);
+
+        const params={
+            id : req.body.id,
+            nickname: req.body.nickname,
+            msg: req.body.msg,
+            reg_date: moment().format('YYYY-MM-DD HH:mm:ss')
+        }
+
+        await connection.query(`
+            INSERT INTO chat(
+                id, nickname, msg, reg_date
+            )VALUES (
+                '${params.id}',
+                '${params.nickname}',
+                '${params.msg}',
+                '${params.reg_date}'
+            )
+        `);
+
+        pusher.trigger('my-channel', 'my-event', params);
+        rs.code = 200;
+        res.send(rs);
+
+    } catch (err) {
+        rs = {code : 500 , err : err};       
+        res.send(rs);
+        return;
+    }
+
+});
+
+// 채팅내용 출력
+app.post('/chatSel', async function(req, res) {   
+    
+    let connection;
+    let rs = {};
+
+    try {
+        connection = await mysql.createConnection(dbConfig);
+
+        const ChatLimitNum = req.body.ChatLimitNum;
+
+        let [result] = await connection.query(`SELECT * from chat order by chatno DESC limit ${ChatLimitNum}`); 
+        result = result.reverse();
+
+        rs.code = 200;   
+        rs.dbo = result;   
+        res.send(rs);
     } catch (err) {
         rs = {code : 500 , err : err};       
         res.send(rs);
