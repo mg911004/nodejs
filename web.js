@@ -164,18 +164,20 @@ app.post('/write', async(req, res) => {
         const category = req.body.category;
         const subject = req.body.subject;
         const content = req.body.content;
+        const file = req.body.file;
         const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         await connection.query(`
             INSERT INTO board(
-                id, nickname, category, subject, content, reg_date
+                id, nickname, category, subject, content, file, reg_date
             )VALUES (
                 '${id}',
                 '${nickname}',
                 '${category}',
                 '${subject}',
                 '${content}',
-                '${reg_date}'
+                '${file}',
+                '${reg_date}',
             )`
         );  
              
@@ -206,13 +208,17 @@ app.post('/modify', async(req, res) => {
         const category = req.body.category;
         const subject = req.body.subject;
         const content = req.body.content;
+        const file = req.body.file;
+        const reg_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         await connection.query(`
             UPDATE board SET 
                 nickname='${nickname}',
                 category='${category}',
                 subject='${subject}',
-                content='${content}'
+                content='${content}',
+                file='${file}',
+                reg_date='${reg_date}'
             WHERE bd_no =${bd_no} and id='${id}'
         `);
 
