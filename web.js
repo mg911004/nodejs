@@ -176,8 +176,8 @@ app.post('/write', async(req, res) => {
                 '${category}',
                 '${subject}',
                 '${content}',
-                '${file}',
-                '${reg_date}',
+                ${file},
+                '${reg_date}'
             )`
         );  
              
@@ -217,7 +217,7 @@ app.post('/modify', async(req, res) => {
                 category='${category}',
                 subject='${subject}',
                 content='${content}',
-                file='${file}',
+                file=${file},
                 reg_date='${reg_date}'
             WHERE bd_no =${bd_no} and id='${id}'
         `);
