@@ -272,13 +272,13 @@ app.post('/boardList', async(req, res) => {
 
         //필터적용
         let filter="";
-        filter = `hide=0 and category='${category}'`;
+        filter = `(hide=0 or hide=2 or hide=3) and category='${category}'`;
         if(sort=="hot"){ //인기
-            filter+=` ORDER BY hits DESC,reg_date DESC`;
+            filter+=` ORDER BY hide DESC, hits DESC, reg_date DESC`;
         }else if(sort=="latest"){ //최신
-            filter+=` ORDER BY reg_date DESC`;
+            filter+=` ORDER BY hide DESC, reg_date DESC`;
         }else if(sort=="ten"){ //10추
-            filter+=` and gets>=10 ORDER BY gets DESC`;
+            filter+=` and gets>=10 ORDER BY hide DESC, gets DESC`;
         }
         //
 
