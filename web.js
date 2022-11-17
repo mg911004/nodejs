@@ -49,7 +49,7 @@ const upload = multer({
 
 
 app.get('/', (req, res) => {
-    res.send("404 not found");
+    res.send("welcome");
 })
 
 //회원가입
